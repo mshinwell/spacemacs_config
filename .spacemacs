@@ -28,8 +28,8 @@ values."
      emacs-lisp
      git
      ocaml
-     ;; markdown
-     ;; org
+     markdown
+     org
      ;; (shell :variables
      ;;        shell-default-height 30
      ;;        shell-default-position 'bottom)
@@ -44,7 +44,7 @@ values."
    ;; wrapped in a layer. If you need some configuration for these
    ;; packages, then consider creating a layer. You can also put the
    ;; configuration in `dotspacemacs/user-config'.
-   dotspacemacs-additional-packages '()
+   dotspacemacs-additional-packages '(show-paren-mode)
    ;; A list of packages and/or extensions that will not be install and loaded.
    dotspacemacs-excluded-packages '(smartparens)
    ;; If non-nil spacemacs will delete any orphan packages, i.e. packages that
@@ -295,6 +295,12 @@ you should place your code here."
   ;; Adjust the minimum height of a window to match vim
   (setq window-min-height 1)
 
+  ;; Disable highlighting of parentheses that surround the cursor (as opposed
+  ;; to highlighting a matching parenthesis when the cursor is on a
+  ;; parenthesis).
+  (global-highlight-parentheses-mode 0)
+  (show-paren-mode 1)
+
   ;; Deselect the region after indentation changes with > and <
   (define-key evil-visual-state-map (kbd ">") 'shift-right-visual-deselect)
   (define-key evil-visual-state-map (kbd "<") 'shift-left-visual-deselect)
@@ -337,7 +343,6 @@ you should place your code here."
   ;; - OCaml mode: tab does nothing at all
   ;; - C mode: sometimes movement wraps around from one line to the next.
   ;;   Also the indentation is a bit weird
-  ;; - Opening a second copy of emacs causes an error (seems to be fixed?)
   ;; - Window movement commands (^W ...) don't work in customize buffers
   ;; - If you select with V and then indent with > then the selection doesn't
   ;;   clear.  Partially fixed above but the point ends up in the wrong place
@@ -351,12 +356,17 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(hl-paren-background-colors (quote ("#ff1493")))
+ '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4"))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(default ((t (:background nil))))
- '(evil-search-highlight-persist-highlight-face ((t (:inherit region :background "color-56"))))
- '(font-lock-doc-face ((t (:foreground "color-33")))))
+ '(evil-search-highlight-persist-highlight-face ((t (:background "color-55"))))
+ '(font-lock-doc-face ((t (:foreground "color-33"))))
+ '(rainbow-delimiters-depth-2-face ((t (:foreground "color-26"))))
+ '(rainbow-delimiters-unmatched-face ((t (:background "color-196" :foreground "color-208"))))
+ '(show-paren-match ((t (:background "#ff1493" :foreground "white"))))
+ '(show-paren-mismatch ((t (:background "color-196" :foreground "color-208")))))
