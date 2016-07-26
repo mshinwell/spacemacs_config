@@ -322,7 +322,6 @@ you should place your code here."
   (setq scroll-error-top-bottom 1)
 
   ;; Things to fix
-  ;; - Silencing of beginning/end of buffer/line messages
   ;; - Something wrong with "A" in some circumstances
   ;; - Splitting a window seems to result with the split in an unpredicatable
   ;;   position
