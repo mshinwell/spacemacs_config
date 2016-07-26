@@ -295,30 +295,27 @@ you should place your code here."
   ;; Adjust the minimum height of a window to match vim
   (setq window-min-height 1)
 
-  ;; Suppress "beginning of buffer" message when cursor tries to move past
-  (defadvice previous-line (around silencer activate)
-    (condition-case nil
-      ad-do-it
-      ((beginning-of-buffer))))
+  ;; Deselect the region after indentation changes with > and <
+  (define-key evil-visual-state-map (kbd ">") 'shift-right-visual-deselect)
+  (define-key evil-visual-state-map (kbd "<") 'shift-left-visual-deselect)
+  (defun shift-left-visual-deselect ()
+    (interactive)
+    (evil-shift-left (region-beginning) (region-end))
+    (evil-normal-state))
+  (defun shift-right-visual-deselect ()
+    (interactive)
+    (evil-shift-right (region-beginning) (region-end))
+    (evil-normal-state))
 
-  ;; Suppress "end of buffer" message when cursor tries to move past
-  ;; (although only seems to work for arrow-key motion, not page down)
-  (defadvice next-line (around silencer activate)
-    (condition-case nil
-      ad-do-it
-      ((end-of-buffer))))
+  (defun my-command-error-function (data context caller)
+    "Silence unnecessary messages"
+    (when (not (memq (car data) '(beginning-of-buffer
+                                  end-of-buffer
+                                  beginning-of-line
+                                  end-of-line)))
+          (command-error-default-function data context caller)))
 
-  ;; Doesn't seem to work
-  (defadvice beginning-of-line (around silencer activate)
-    (condition-case nil
-      ad-do-it
-      ((beginning-of-line))))
-
-  ;; Doesn't seem to work
-  (defadvice end-of-line (around silencer activate)
-    (condition-case nil
-      ad-do-it
-      ((end-of-line))))
+  (setq command-error-function #'my-command-error-function)
 
   ;; When page up/down cannot scroll by a whole screenful, move the cursor to
   ;; the top (resp. bottom) line.
@@ -343,6 +340,9 @@ you should place your code here."
   ;;   Also the indentation is a bit weird
   ;; - Opening a second copy of emacs causes an error (seems to be fixed?)
   ;; - Window movement commands (^W ...) don't work in customize buffers
+  ;; - If you select with V and then indent with > then the selection doesn't
+  ;;   clear.  Partially fixed above but the point ends up in the wrong place
+  ;;   sometimes...
 )
 
 ;; Do not write anything past this comment. This is where Emacs will
