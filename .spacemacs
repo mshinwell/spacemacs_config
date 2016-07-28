@@ -23,7 +23,7 @@ values."
      ;; Uncomment some layer names and press <SPC f e R> (Vim style) or
      ;; <M-m f e R> (Emacs style) to install them.
      ;; ----------------------------------------------------------------
-     ;; auto-completion
+     auto-completion
      ;; better-defaults
      emacs-lisp
      git
@@ -44,7 +44,7 @@ values."
    ;; wrapped in a layer. If you need some configuration for these
    ;; packages, then consider creating a layer. You can also put the
    ;; configuration in `dotspacemacs/user-config'.
-   dotspacemacs-additional-packages '(show-paren-mode)
+   dotspacemacs-additional-packages '()
    ;; A list of packages and/or extensions that will not be install and loaded.
    dotspacemacs-excluded-packages '(smartparens)
    ;; If non-nil spacemacs will delete any orphan packages, i.e. packages that
@@ -253,6 +253,11 @@ This is the place where most of your configurations should be done. Unless it is
 explicitly specified that a variable should be set before a package is loaded,
 you should place your code here."
 
+  ;; Merlin
+  (add-to-list 'load-path "~/.merlin/share/emacs/site-lisp")
+  (setq merlin-command "~/.merlin/bin/ocamlmerlin")
+  (require 'merlin)
+
   ;; 80(etc)-column marker
   (define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
   (global-fci-mode 1)
@@ -263,7 +268,7 @@ you should place your code here."
 
   ;; Disable Merlin for the moment, since if it's unavailable, errors are
   ;; produced in the modeline when saving files.
-  (setq tuareg-mode-hook '())
+  ;; (setq tuareg-mode-hook '())
 
   ;; Disable mouse support (mainly so that when the focus is given to a
   ;; Spacemacs window it doesn't cause the cursor to move.  Also seems to make
@@ -299,19 +304,26 @@ you should place your code here."
   ;; to highlighting a matching parenthesis when the cursor is on a
   ;; parenthesis).
   (global-highlight-parentheses-mode 0)
+  (highlight-parentheses-mode 0)
   (show-paren-mode 1)
 
   ;; Deselect the region after indentation changes with > and <
+  ;; Also ensure that the cursor stays at the start of the indented portion
+  ;; as in vim.
   (define-key evil-visual-state-map (kbd ">") 'shift-right-visual-deselect)
   (define-key evil-visual-state-map (kbd "<") 'shift-left-visual-deselect)
   (defun shift-left-visual-deselect ()
     (interactive)
-    (evil-shift-left (region-beginning) (region-end))
-    (evil-normal-state))
+    (let ((pos (point)))
+      (evil-shift-left (region-beginning) (region-end))
+      (goto-char pos)))
   (defun shift-right-visual-deselect ()
     (interactive)
-    (evil-shift-right (region-beginning) (region-end))
-    (evil-normal-state))
+    (let ((pos (point)))
+      (evil-shift-right (region-beginning) (region-end))
+      ;; Still not correct -- moves to first non-blank, except at start of
+      ;; line, when it stays put...
+      (goto-char pos)))
 
   (defun my-command-error-function (data context caller)
     "Silence unnecessary messages"
@@ -327,26 +339,36 @@ you should place your code here."
   ;; the top (resp. bottom) line.
   (setq scroll-error-top-bottom 1)
 
+  ;; The following is done by custom-set-variables below.  It prevents use
+  ;; of the dire helm completion-as-point when doing ":e <pathname>".
+  ;; '(helm-mode-handle-completion-in-region nil)
+
   ;; Things to fix
   ;; - Something wrong with "A" in some circumstances
   ;; - Splitting a window seems to result with the split in an unpredicatable
   ;;   position
   ;; - Closing a window seems to move the focus in unpredictable ways.
-  ;; - Finding files with e.g. ":e" is awful
   ;; - Sometimes when you type ":" the focus changes to a different window
-  ;; - Brighten up colours
-  ;; - Better colours for parenthesis highlighting.  Some delays here too.
   ;; - Slowness
   ;; - Page up held down doesn't scroll properly
   ;; - Page up doesn't move the cursor to the top line if there isn't a
   ;;   screenful above  (Page up/down issues apparently fixed in dev spacemacs)
   ;; - OCaml mode: tab does nothing at all
   ;; - C mode: sometimes movement wraps around from one line to the next.
-  ;;   Also the indentation is a bit weird
+  ;;   Also the indentation is a bit weird.  In C for example, type
+  ;;   void (foo)
+  ;;   {
+  ;;   }
+  ;;   and the braces will be all over the place
   ;; - Window movement commands (^W ...) don't work in customize buffers
+  ;;   (and in some magit buffers IIRC)
   ;; - If you select with V and then indent with > then the selection doesn't
   ;;   clear.  Partially fixed above but the point ends up in the wrong place
   ;;   sometimes...
+  ;; - Still problems with starting multiple instances on occasion. e.g. Warning
+  ;;   (initialization): An error occurred while loading
+  ;;   /home/mshinwell/.emacs.d/init.el: Symbol's value as variable is void:
+  ;;   defun )
 )
 
 ;; Do not write anything past this comment. This is where Emacs will
@@ -356,6 +378,7 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(helm-mode-handle-completion-in-region nil)
  '(hl-paren-background-colors (quote ("#ff1493")))
  '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4"))))
 (custom-set-faces
@@ -364,6 +387,8 @@ you should place your code here."
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(default ((t (:background nil))))
+ '(company-tooltip-common ((t (:inherit company-tooltip :weight bold :underline nil))))
+ '(company-tooltip-common-selection ((t (:inherit company-tooltip-selection :weight bold :underline nil))))
  '(evil-search-highlight-persist-highlight-face ((t (:background "color-55"))))
  '(font-lock-doc-face ((t (:foreground "color-33"))))
  '(rainbow-delimiters-depth-2-face ((t (:foreground "color-26"))))
