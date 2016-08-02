@@ -59,6 +59,9 @@ before layers configuration.
 You should not put any user code in there besides modifying the variable
 values."
 
+  ;; Start emacs server.
+  (server-start)
+
   ;; Stop evil mode grabbing Ctrl+Z, so we can use it for SIGSTOP instead.
   (setq evil-toggle-key "C-`")
 
@@ -369,6 +372,15 @@ you should place your code here."
   ;;   (initialization): An error occurred while loading
   ;;   /home/mshinwell/.emacs.d/init.el: Symbol's value as variable is void:
   ;;   defun )
+  ;; - "emacs foo" does not open "foo" seemingly without a keypress, which then
+  ;;   also causes an error
+  ;; - ":q" does not exit seemingly without a keypress
+  ;; - Silence "no later matching history item" (needs match on the text)
+  ;; - In tuareg mode, if you open a quote for a string, the cursor is not
+  ;;   prevented from moving from the end of one line to the start of the
+  ;;   next (upon pressing right-arrow), like it normally is
+  ;; - Flickering upon scrolling
+  ;; - Up/down arrows don't work after / (for search history)
 )
 
 ;; Do not write anything past this comment. This is where Emacs will
