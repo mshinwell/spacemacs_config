@@ -222,7 +222,7 @@ values."
    dotspacemacs-highlight-delimiters 'all
    ;; If non nil advises quit functions to keep server open when quitting.
    ;; (default nil)
-   dotspacemacs-persistent-server nil
+   dotspacemacs-persistent-server t
    ;; List of search tool executable names. Spacemacs uses the first installed
    ;; tool of the list. Supported tools are `ag', `pt', `ack' and `grep'.
    ;; (default '("ag" "pt" "ack" "grep"))
@@ -288,6 +288,11 @@ you should place your code here."
   (add-hook 'tuareg-mode-hook (lambda ()
     (define-key tuareg-mode-map [remap newline-and-indent] 'newline)))
 
+  ;; When pressing / or ? to search, enable up/down arrows to move through
+  ;; search history.
+  (define-key isearch-mode-map (kbd "<up>") 'isearch-ring-retreat)
+  (define-key isearch-mode-map (kbd "<down>") 'isearch-ring-advance)
+
   (electric-indent-mode 0)
   (setq tuareg-electric-indent nil)
 
@@ -342,14 +347,36 @@ you should place your code here."
   ;; the top (resp. bottom) line.
   (setq scroll-error-top-bottom 1)
 
+  ;; Stop Merlin showing errors
+  (merlin-toggle-view-errors)
+
+;;  ;; Make Page Up / Page Down behave as would be expected.
+;;  ;; See https://www.emacswiki.org/emacs/Scrolling
+;;  (defun sfp-page-down (&optional arg)
+;;    (interactive "^P")
+;;    (setq this-command 'next-line)
+;;    (next-line (- (window-text-height) next-screen-context-lines)))
+;;
+;;  (put 'sfp-page-down 'isearch-scroll t)
+;;  (put 'sfp-page-down 'CUA 'move)
+;;
+;;  (defun sfp-page-up (&optional arg)
+;;    (interactive "^P")
+;;    (setq this-command 'previous-line)
+;;    (previous-line (- (window-text-height) next-screen-context-lines)))
+;;
+;;  (put 'sfp-page-up 'isearch-scroll t)
+;;  (put 'sfp-page-up 'CUA 'move)
+;;
+;;  (global-set-key [next] 'sfp-page-down)
+;;  (global-set-key [prior] 'sfp-page-up)
+
   ;; The following is done by custom-set-variables below.  It prevents use
   ;; of the dire helm completion-as-point when doing ":e <pathname>".
   ;; '(helm-mode-handle-completion-in-region nil)
 
   ;; Things to fix
   ;; - Something wrong with "A" in some circumstances
-  ;; - Splitting a window seems to result with the split in an unpredicatable
-  ;;   position
   ;; - Closing a window seems to move the focus in unpredictable ways.
   ;; - Sometimes when you type ":" the focus changes to a different window
   ;; - Slowness
@@ -381,6 +408,20 @@ you should place your code here."
   ;;   next (upon pressing right-arrow), like it normally is
   ;; - Flickering upon scrolling
   ;; - Up/down arrows don't work after / (for search history)
+  ;; - e.g. "4>" doesn't work; the 4 is ignored.
+  ;; - When moving up to a previous ":sp" command, the cursor doesn't move to
+  ;;   the end of the command suitable for easy editing
+  ;; - Ctrl+G doesn't do the right thing.  This is a pain because sometimes
+  ;;   the line/char positions aren't visible on the RHS of the status line
+  ;;   (e.g. when window vertically split)
+  ;; - Undo seems to be coalescing actions
+  ;; - Something reverted window-combination-resize to t.
+  ;; - Moving CR comments using < in tuareg mode screws up the indentation
+  ;; - If you have a second frame in another tty then Ctrl+Z doesn't work to
+  ;;   suspend the first one any more.  It says "There are other tty frames
+  ;;   open; close them before suspending Emacs".
+  ;; - Ediff bindings! The window motion keys don't work
+  ;; - "Failed to apply window resizing" when trying to close a window
 )
 
 ;; Do not write anything past this comment. This is where Emacs will
@@ -390,22 +431,28 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(evil-want-fine-undo t)
  '(helm-mode-handle-completion-in-region nil)
  '(hl-paren-background-colors (quote ("#ff1493")))
- '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4"))))
+ '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4")))
+ '(smooth-scroll-margin 1)
+ '(window-combination-resize nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:background nil))))
+ '(default ((t (:inherit nil :stipple nil :background "#000000" :foreground "#d3d3d3" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 90 :width normal :family "DejaVu Sans Mono"))))
  '(company-tooltip-common ((t (:inherit company-tooltip :weight bold :underline nil))))
  '(company-tooltip-common-selection ((t (:inherit company-tooltip-selection :weight bold :underline nil))))
  '(diff-added ((t (:foreground "color-48"))))
  '(diff-removed ((t (:foreground "color-198"))))
  '(evil-search-highlight-persist-highlight-face ((t (:background "color-55"))))
  '(font-lock-doc-face ((t (:foreground "color-33"))))
+ '(hl-line ((t (:background "color-234"))))
+ '(link ((t (:foreground "color-172" :underline t :weight bold))))
  '(rainbow-delimiters-depth-2-face ((t (:foreground "color-26"))))
  '(rainbow-delimiters-unmatched-face ((t (:background "color-196" :foreground "color-208"))))
+ '(region ((t (:background "color-17"))))
  '(show-paren-match ((t (:background "#ff1493" :foreground "white"))))
  '(show-paren-mismatch ((t (:background "color-196" :foreground "color-208")))))
