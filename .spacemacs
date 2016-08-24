@@ -27,6 +27,7 @@ values."
      ;; better-defaults
      emacs-lisp
      git
+     ;;gdb-mi
      ocaml
      markdown
      org
@@ -46,7 +47,7 @@ values."
    ;; configuration in `dotspacemacs/user-config'.
    dotspacemacs-additional-packages '()
    ;; A list of packages and/or extensions that will not be install and loaded.
-   dotspacemacs-excluded-packages '(smartparens)
+   dotspacemacs-excluded-packages '(smartparens highlight-parentheses)
    ;; If non-nil spacemacs will delete any orphan packages, i.e. packages that
    ;; are declared in a layer which is not a member of
    ;; the list `dotspacemacs-configuration-layers'. (default t)
@@ -64,6 +65,16 @@ values."
 
   ;; Stop evil mode grabbing Ctrl+Z, so we can use it for SIGSTOP instead.
   (setq evil-toggle-key "C-`")
+
+  ;; TAB to select a completion, not RET.
+  (setq-default dotspacemacs-configuration-layers '(
+    (auto-completion :variables
+      auto-completion-return-key-behavior 'nil
+      auto-completion-tab-key-behavior 'complete)))
+
+  ;; Make company-mode aware of merlin
+;;  (with-eval-after-load 'company
+;;    (add-to-list 'company-backends 'merlin-company-backend))
 
   ;; This setq-default sexp is an exhaustive list of all the supported
   ;; spacemacs settings.
@@ -208,7 +219,7 @@ values."
    ;; If non nil smooth scrolling (native-scrolling) is enabled. Smooth
    ;; scrolling overrides the default behavior of Emacs which recenters the
    ;; point when it reaches the top or bottom of the screen. (default t)
-   dotspacemacs-smooth-scrolling t
+   dotspacemacs-smooth-scrolling nil
    ;; If non nil line numbers are turned on in all `prog-mode' and `text-mode'
    ;; derivatives. If set to `relative', also turns on relative line numbers.
    ;; (default nil)
@@ -222,7 +233,7 @@ values."
    dotspacemacs-highlight-delimiters 'all
    ;; If non nil advises quit functions to keep server open when quitting.
    ;; (default nil)
-   dotspacemacs-persistent-server t
+   dotspacemacs-persistent-server nil
    ;; List of search tool executable names. Spacemacs uses the first installed
    ;; tool of the list. Supported tools are `ag', `pt', `ack' and `grep'.
    ;; (default '("ag" "pt" "ack" "grep"))
@@ -256,10 +267,26 @@ This is the place where most of your configurations should be done. Unless it is
 explicitly specified that a variable should be set before a package is loaded,
 you should place your code here."
 
+;;  ;; Use company mode instead of auto-complete
+;;  (global-company-mode)
+
+  ;; Do the same thing as smooth scrolling mode, but without it
+  (setq scroll-conservatively 101)
+
   ;; Merlin
   (add-to-list 'load-path "~/.merlin/share/emacs/site-lisp")
   (setq merlin-command "~/.merlin/bin/ocamlmerlin")
+  (setq merlin-ac-setup 'easy)
+  (setq merlin-completion-dwim t)
   (require 'merlin)
+
+  ;; TAB to select a completion, not ENTER
+  (add-hook 'company-mode-hook (lambda ()
+    (define-key company-active-map (kbd "TAB") 'company-complete-selection)
+    (define-key company-active-map (kbd "RET") nil)))
+
+  ;; Stop Merlin highlighting errors
+  (merlin-toggle-view-errors)
 
   ;; 80(etc)-column marker
   (define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
@@ -268,10 +295,6 @@ you should place your code here."
 
   ;; Do not recentre the display upon Ctrl+L, just redraw it.
   (global-set-key (kbd "C-l") 'redraw-display)
-
-  ;; Disable Merlin for the moment, since if it's unavailable, errors are
-  ;; produced in the modeline when saving files.
-  ;; (setq tuareg-mode-hook '())
 
   ;; Disable mouse support (mainly so that when the focus is given to a
   ;; Spacemacs window it doesn't cause the cursor to move.  Also seems to make
@@ -308,12 +331,11 @@ you should place your code here."
   ;; Adjust the minimum height of a window to match vim
   (setq window-min-height 1)
 
-  ;; Disable highlighting of parentheses that surround the cursor (as opposed
-  ;; to highlighting a matching parenthesis when the cursor is on a
-  ;; parenthesis).
-  (global-highlight-parentheses-mode 0)
-  (highlight-parentheses-mode 0)
+  ;; Show matching parentheses.
   (show-paren-mode 1)
+
+  ;; Multi-window mode for gdb mode
+  (setq gdb-many-windows t)
 
   ;; Deselect the region after indentation changes with > and <
   ;; Also ensure that the cursor stays at the start of the indented portion
@@ -431,6 +453,9 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-auto-complete (quote (quote company-explicit-action-p)))
+ '(company-auto-complete-chars ".")
+ '(company-idle-delay 1.0)
  '(evil-want-fine-undo t)
  '(helm-mode-handle-completion-in-region nil)
  '(hl-paren-background-colors (quote ("#ff1493")))
@@ -451,6 +476,7 @@ you should place your code here."
  '(font-lock-doc-face ((t (:foreground "color-33"))))
  '(hl-line ((t (:background "color-234"))))
  '(link ((t (:foreground "color-172" :underline t :weight bold))))
+ '(rainbow-delimiters-depth-1-face ((t (:foreground "color-127"))))
  '(rainbow-delimiters-depth-2-face ((t (:foreground "color-26"))))
  '(rainbow-delimiters-unmatched-face ((t (:background "color-196" :foreground "color-208"))))
  '(region ((t (:background "color-17"))))
