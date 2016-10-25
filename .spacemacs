@@ -27,7 +27,6 @@ values."
      ;; better-defaults
      emacs-lisp
      git
-     ;;gdb-mi
      ocaml
      markdown
      org
@@ -47,7 +46,7 @@ values."
    ;; configuration in `dotspacemacs/user-config'.
    dotspacemacs-additional-packages '()
    ;; A list of packages and/or extensions that will not be install and loaded.
-   dotspacemacs-excluded-packages '(smartparens highlight-parentheses)
+   dotspacemacs-excluded-packages '(smartparens highlight-parentheses ocp-indent)
    ;; If non-nil spacemacs will delete any orphan packages, i.e. packages that
    ;; are declared in a layer which is not a member of
    ;; the list `dotspacemacs-configuration-layers'. (default t)
@@ -61,7 +60,7 @@ You should not put any user code in there besides modifying the variable
 values."
 
   ;; Start emacs server.
-  (server-start)
+  ;; (server-start)
 
   ;; Stop evil mode grabbing Ctrl+Z, so we can use it for SIGSTOP instead.
   (setq evil-toggle-key "C-`")
@@ -296,20 +295,9 @@ you should place your code here."
   ;; Do not recentre the display upon Ctrl+L, just redraw it.
   (global-set-key (kbd "C-l") 'redraw-display)
 
-  ;; Disable mouse support (mainly so that when the focus is given to a
-  ;; Spacemacs window it doesn't cause the cursor to move.  Also seems to make
-  ;; pasting into Spacemacs work properly)
-  (xterm-mouse-mode 0)
-  (gpm-mouse-mode 0)
-
   ;; Make Ctrl+Z suspend emacs
   (global-unset-key (kbd "C-z"))
   (global-set-key (kbd "C-z") 'suspend-frame)
-
-  ;; Disable re-indentation of the current line and/or indentation for the
-  ;; next line upon RETURN, etc.
-  (add-hook 'tuareg-mode-hook (lambda ()
-    (define-key tuareg-mode-map [remap newline-and-indent] 'newline)))
 
   ;; When pressing / or ? to search, enable up/down arrows to move through
   ;; search history.
@@ -336,6 +324,16 @@ you should place your code here."
 
   ;; Multi-window mode for gdb mode
   (setq gdb-many-windows t)
+
+  ;; Disable mouse clicks
+  (xterm-mouse-mode 0)
+  (gpm-mouse-mode 0)
+
+  (add-hook 'tuareg-mode-hook (lambda ()
+    (define-key tuareg-mode-map (kbd "<tab>") 'indent_for_tab_command)
+    (define-key tuareg-mode-map [remap newline-and-indent] 'newline)
+    (setq tuareg-electric-indent nil)
+  ))
 
   ;; Deselect the region after indentation changes with > and <
   ;; Also ensure that the cursor stays at the start of the indented portion
@@ -372,32 +370,113 @@ you should place your code here."
   ;; Stop Merlin showing errors
   (merlin-toggle-view-errors)
 
-;;  ;; Make Page Up / Page Down behave as would be expected.
-;;  ;; See https://www.emacswiki.org/emacs/Scrolling
-;;  (defun sfp-page-down (&optional arg)
-;;    (interactive "^P")
-;;    (setq this-command 'next-line)
-;;    (next-line (- (window-text-height) next-screen-context-lines)))
+  ;; Make Page Up / Page Down behave similarly to vim.
+  (defun vim-page-down (&optional arg)
+    (interactive "^P")
+    (let ((remaining (count-lines (point) (buffer-end 1))))
+      (if (< remaining (window-text-height))
+        (progn
+          (scroll-up (- (count-lines (window-start) (buffer-end 1)) 1))
+          (goto-char (buffer-end 1)))
+        (scroll-up (- (window-text-height) 2))
+        (goto-char (window-start)))))
+
+  (defun vim-page-up (&optional arg)
+    (interactive "^P")
+    (let ((old-start (window-start))
+          (remaining (count-lines (buffer-end -1) (point))))
+      (if (< remaining (window-text-height))
+        ()
+        (scroll-down (- (window-text-height) 2))
+        (goto-char old-start)
+        (next-line))))
+
+;;  (progn
+;;    (scroll-down (- (count-lines (window-start) (buffer-end -1)) 1))
+;;    (goto-char (buffer-end -1)))
+;;;;
+;;;;  (put 'vim-page-down 'isearch-scroll t)
+;;;;  (put 'vim-page-down 'CUA 'move)
+;;;;
+;;;;  (put 'vim-page-up 'isearch-scroll t)
+;;;;  (put 'vim-page-up 'CUA 'move)
+;;;;
+  (global-set-key [next] 'vim-page-down)
+  (global-set-key [prior] 'vim-page-up)
+
+  (defun gdb-restore-windows-gud-io-and-source ()
+    "Restore GUD buffer, IO buffer and source buffer next to each other."
+    (interactive)
+    ;; Select dedicated GUD buffer.
+    (switch-to-buffer gud-comint-buffer)
+    (delete-other-windows)
+    (set-window-dedicated-p (get-buffer-window) t)
+    (when (or gud-last-last-frame gdb-show-main)
+      (let ((side-win (split-window nil nil t))
+            (bottom-win (split-window))
+            (middle-win (split-window)))
+        (let ((bottom-right-win
+               (split-window side-win (- (* 2 (window-height)) 1))))
+          ;; Put source to the right.
+          (set-window-buffer
+           side-win
+           (if gud-last-last-frame
+               (gud-find-file (car gud-last-last-frame))
+             (gud-find-file gdb-main-file)))
+          (setq gdb-source-window side-win)
+          ;; Show dedicated IO buffer in the middle
+          (set-window-buffer
+           middle-win
+           (gdb-get-buffer-create 'gdb-inferior-io))
+          (set-window-dedicated-p middle-win t)
+          ;; Stack at the bottom left
+          (set-window-buffer
+           bottom-win
+           (gdb-get-buffer-create 'gdb-stack-buffer))
+          (set-window-dedicated-p bottom-win t)
+          ;; Local vars at the bottom right
+          (set-window-buffer
+           bottom-right-win
+           (gdb-get-buffer-create 'gdb-locals-buffer))
+          (set-window-dedicated-p bottom-right-win t)
+          ))))
+
+  ;; Put useful files first in the helm listings
+;;  (defun prioritise-in-helm (filename)
+;;    (let ((basename (file-name-extension filename)))
+;;      (pcase basename
+;;        ("ml" t)
+;;        ("mli" t)
+;;        ("c" t)
+;;        ("h" t)
+;;        (_ nil))))
 ;;
-;;  (put 'sfp-page-down 'isearch-scroll t)
-;;  (put 'sfp-page-down 'CUA 'move)
+;;  (defun my-helm-buffers-sort-transformer (candidates _source)
+;;    (if (string= helm-pattern "")
+;;        candidates
+;;      (sort candidates
+;;            (lambda (s1 s2)
+;;              (let ((s1_prioritise (prioritise-in-helm s1))
+;;                    (s2_prioritise (prioritise-in-helm s2)))
+;;                (if (eq s1_prioritise s2_prioritise)
+;;                    (< (string-width s1) (string-width s2))
+;;                  s1_prioritise))))))
 ;;
-;;  (defun sfp-page-up (&optional arg)
-;;    (interactive "^P")
-;;    (setq this-command 'previous-line)
-;;    (previous-line (- (window-text-height) next-screen-context-lines)))
-;;
-;;  (put 'sfp-page-up 'isearch-scroll t)
-;;  (put 'sfp-page-up 'CUA 'move)
-;;
-;;  (global-set-key [next] 'sfp-page-down)
-;;  (global-set-key [prior] 'sfp-page-up)
+;;  (advice-add 'helm-buffers-sort-transformer
+;;              :around 'my-helm-buffers-sort-transformer)
 
   ;; The following is done by custom-set-variables below.  It prevents use
   ;; of the dire helm completion-as-point when doing ":e <pathname>".
   ;; '(helm-mode-handle-completion-in-region nil)
 
+  ;; NEW FAULTS
+  ;; - When reloading .spacemacs, the highlight-search colour changes to
+  ;;   yellow.
+  ;; - whitespace-mode is no longer disabled in diff-mode
+
   ;; Things to fix
+  ;; - Helm completion on file/directory names should never pick one if there
+  ;;   are multiple matches when you press tab
   ;; - Something wrong with "A" in some circumstances
   ;; - Closing a window seems to move the focus in unpredictable ways.
   ;; - Sometimes when you type ":" the focus changes to a different window
@@ -453,14 +532,21 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(company-auto-complete (quote (quote company-explicit-action-p)))
+ '(company-auto-complete t)
  '(company-auto-complete-chars ".")
- '(company-idle-delay 1.0)
+ '(company-idle-delay nil)
  '(evil-want-fine-undo t)
  '(helm-mode-handle-completion-in-region nil)
  '(hl-paren-background-colors (quote ("#ff1493")))
  '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4")))
+ '(package-selected-packages
+   (quote
+    (disable-mouse zonokai-theme zenburn-theme zen-and-art-theme ws-butler window-numbering which-key volatile-highlights vi-tilde-fringe uuidgen utop use-package underwater-theme ujelly-theme twilight-theme twilight-bright-theme twilight-anti-bright-theme tuareg tronesque-theme toxi-theme toc-org tao-theme tangotango-theme tango-plus-theme tango-2-theme sunny-day-theme sublime-themes subatomic256-theme subatomic-theme stekene-theme spacemacs-theme spaceline spacegray-theme soothe-theme soft-stone-theme soft-morning-theme soft-charcoal-theme smyx-theme smeargle seti-theme reverse-theme restart-emacs rainbow-delimiters railscasts-theme quelpa purple-haze-theme professional-theme popwin planet-theme phoenix-dark-pink-theme phoenix-dark-mono-theme persp-mode pcre2el pastels-on-dark-theme paradox orgit organic-green-theme org-projectile org-present org-pomodoro org-plus-contrib org-download org-bullets open-junk-file omtose-phellack-theme oldlace-theme occidental-theme obsidian-theme noctilux-theme niflheim-theme neotree naquadah-theme mustang-theme move-text monokai-theme monochrome-theme molokai-theme moe-theme mmm-mode minimal-theme merlin material-theme markdown-toc majapahit-theme magit-gitflow macrostep lush-theme lorem-ipsum linum-relative link-hint light-soap-theme jbeans-theme jazz-theme ir-black-theme inkpot-theme info+ indent-guide ido-vertical-mode hungry-delete htmlize hl-todo highlight-numbers highlight-indentation heroku-theme hemisu-theme help-fns+ helm-themes helm-swoop helm-projectile helm-mode-manager helm-make helm-gitignore helm-flx helm-descbinds helm-company helm-c-yasnippet helm-ag hc-zenburn-theme gruvbox-theme gruber-darker-theme grandshell-theme gotham-theme google-translate golden-ratio gnuplot gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link gh-md gandalf-theme flx-ido flatui-theme flatland-theme firebelly-theme fill-column-indicator farmhouse-theme fancy-battery eyebrowse expand-region exec-path-from-shell evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-surround evil-search-highlight-persist evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-indent-plus evil-iedit-state evil-exchange evil-escape evil-ediff evil-args evil-anzu eval-sexp-fu espresso-theme elisp-slime-nav dumb-jump dracula-theme django-theme define-word darktooth-theme darkokai-theme darkmine-theme darkburn-theme dakrone-theme cyberpunk-theme company-statistics column-enforce-mode colorsarenice-theme color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized clues-theme clean-aindent-mode cherry-blossom-theme busybee-theme bubbleberry-theme birds-of-paradise-plus-theme badwolf-theme auto-yasnippet auto-highlight-symbol auto-compile apropospriate-theme anti-zenburn-theme ample-zen-theme ample-theme alect-themes aggressive-indent afternoon-theme adaptive-wrap ace-window ace-link ace-jump-helm-line ac-ispell)))
  '(smooth-scroll-margin 1)
+ '(tab-width 8)
+ '(tuareg-electric-indent nil)
+ '(tuareg-indent-comments nil)
+ '(tuareg-indent-leading-comments nil)
  '(window-combination-resize nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
