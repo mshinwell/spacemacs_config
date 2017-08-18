@@ -59,6 +59,10 @@ before layers configuration.
 You should not put any user code in there besides modifying the variable
 values."
 
+  ;; Silence:
+  ;; Error (use-package): tuareg :init: Symbol’s value as variable is void: opam-load-path
+  (setq opam-load-path "")
+
   ;; Start emacs server.
   ;; (server-start)
 
@@ -94,7 +98,7 @@ values."
    ;; variable is `emacs' then the `holy-mode' is enabled at startup. `hybrid'
    ;; uses emacs key bindings for vim's insert mode, but otherwise leaves evil
    ;; unchanged. (default 'vim)
-   dotspacemacs-editing-style 'hybrid
+   dotspacemacs-editing-style 'vim
    ;; If non nil output loading progress in `*Messages*' buffer. (default nil)
    dotspacemacs-verbose-loading nil
    ;; Specify the startup banner. Default value is `official', it displays
@@ -266,26 +270,30 @@ This is the place where most of your configurations should be done. Unless it is
 explicitly specified that a variable should be set before a package is loaded,
 you should place your code here."
 
-;;  ;; Use company mode instead of auto-complete
-;;  (global-company-mode)
+  ;; Use company mode instead of auto-complete
+  (global-company-mode)
 
   ;; Do the same thing as smooth scrolling mode, but without it
   (setq scroll-conservatively 101)
 
   ;; Merlin
-  (add-to-list 'load-path "~/.merlin/share/emacs/site-lisp")
-  (setq merlin-command "~/.merlin/bin/ocamlmerlin")
+  (add-to-list 'load-path "/mnt/local/sda1/mshinwell/opam/4.06.0+trunk/share/emacs/site-lisp")
+  (setq merlin-command "/mnt/local/sda1/mshinwell/opam/4.06.0+trunk/bin/ocamlmerlin")
   (setq merlin-ac-setup 'easy)
   (setq merlin-completion-dwim t)
+  (setq merlin-error-after-save nil)
   (require 'merlin)
+
+  (setq company-auto-complete t)
+  (setq company-auto-complete-chars "")
+  (setq company-idle-delay 0.4)
+  (setq company-minimum-prefix-length 3)
 
   ;; TAB to select a completion, not ENTER
   (add-hook 'company-mode-hook (lambda ()
     (define-key company-active-map (kbd "TAB") 'company-complete-selection)
+    (define-key company-active-map [escape] 'company-abort)
     (define-key company-active-map (kbd "RET") nil)))
-
-  ;; Stop Merlin highlighting errors
-  (merlin-toggle-view-errors)
 
   ;; 80(etc)-column marker
   (define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
@@ -306,6 +314,7 @@ you should place your code here."
 
   (electric-indent-mode 0)
   (setq tuareg-electric-indent nil)
+  (setq-default tuareg-use-smie 0)
 
   ;; Automatic re-reading of files
   (global-auto-revert-mode 1)
@@ -329,11 +338,28 @@ you should place your code here."
   (xterm-mouse-mode 0)
   (gpm-mouse-mode 0)
 
+  ;; Hack to prevent error, see https://github.com/syl20bnr/spacemacs/issues/8091
+  (setq dotspacemacs-helm-use-fuzzy 'source)
+
+  (setq projectile-switch-project-action 'projectile-dired)
+
+  (setq helm-ff-skip-boring-files t)
+
+  (setq helm-boring-file-regexp-list
+    (append (progn (require 'helm-files) helm-boring-file-regexp-list)
+            '("\\.cmi$" "\\.cmt$" "\\.cmti$" "\\.cmx$" "\\.d$" "\\.deps$"
+              "\\.cmxa$" "\\.ml-gen$" "\\.modules$" "\\.pack-order$"
+              "\\.libdeps$" "\\.names$" "\\.cmo$" "\\.cmo.js$" "\\.o$")))
+
   (add-hook 'tuareg-mode-hook (lambda ()
     (define-key tuareg-mode-map (kbd "<tab>") 'indent_for_tab_command)
     (define-key tuareg-mode-map [remap newline-and-indent] 'newline)
     (setq tuareg-electric-indent nil)
   ))
+;;
+;;  (evil-leader/set-key-for-mode 'tuareg-mode
+;;    "SPC o i" 'merlin-switch-to-mli
+;;    "SPC o o" 'merlin-switch-to-ml)
 
   ;; Deselect the region after indentation changes with > and <
   ;; Also ensure that the cursor stays at the start of the indented portion
@@ -367,8 +393,13 @@ you should place your code here."
   ;; the top (resp. bottom) line.
   (setq scroll-error-top-bottom 1)
 
+  (setq spaceline-highlight-face-func 'spaceline-highlight-face-modified)
+
+  (setq-default dotspacemacs-configuration-layers '(
+    (org :variables org-enable-github-support t)))
+
   ;; Stop Merlin showing errors
-  (merlin-toggle-view-errors)
+;;  (merlin-toggle-view-errors)
 
   ;; Make Page Up / Page Down behave similarly to vim.
   (defun vim-page-down (&optional arg)
@@ -383,10 +414,9 @@ you should place your code here."
 
   (defun vim-page-up (&optional arg)
     (interactive "^P")
-    (let ((old-start (window-start))
-          (remaining (count-lines (buffer-end -1) (point))))
-      (if (< remaining (window-text-height))
-        ()
+    (let ((old-start (window-start)))
+      (if (eq old-start (buffer-end -1))
+        (goto-char old-start)
         (scroll-down (- (window-text-height) 2))
         (goto-char old-start)
         (next-line))))
@@ -403,6 +433,31 @@ you should place your code here."
 ;;;;
   (global-set-key [next] 'vim-page-down)
   (global-set-key [prior] 'vim-page-up)
+
+  (add-to-list
+    'display-buffer-alist
+    '("\\*compilation\\*" display-buffer-reuse-window (reusable-frames . t))
+  )
+
+  (add-to-list
+    'display-buffer-alist
+    '(".*\\.ml" display-buffer-reuse-window (reusable-frames . t))
+  )
+
+  (add-to-list
+   'display-buffer-alist
+   '(".*\\.mli" display-buffer-reuse-window (reusable-frames . t))
+  )
+
+  (add-to-list
+   'display-buffer-alist
+   '(".*\\.c" display-buffer-reuse-window (reusable-frames . t))
+  )
+
+  (add-to-list
+   'display-buffer-alist
+   '(".*\\.h" display-buffer-reuse-window (reusable-frames . t))
+  )
 
   (defun gdb-restore-windows-gud-io-and-source ()
     "Restore GUD buffer, IO buffer and source buffer next to each other."
@@ -440,6 +495,120 @@ you should place your code here."
            (gdb-get-buffer-create 'gdb-locals-buffer))
           (set-window-dedicated-p bottom-right-win t)
           ))))
+
+(defun compilation-goto-locus (msg mk end-mk)
+  "Jump to an error corresponding to MSG at MK.
+All arguments are markers.  If END-MK is non-nil, mark is set there
+and overlay is highlighted between MK and END-MK."
+  ;; Show compilation buffer in other window, scrolled to this error.
+;;  (message "window-buffer %s, marker-buffer msg %s"
+;;   (window-buffer)
+;;   (marker-buffer msg))
+  (let* ((from-compilation-buffer (eq (window-buffer)
+                                      (marker-buffer msg)))
+         ;; Use an existing window if it is in a visible frame.
+         (pre-existing (get-buffer-window (marker-buffer msg) 0))
+         (w (if (and from-compilation-buffer pre-existing)
+                ;; Calling display-buffer here may end up (partly) hiding
+                ;; the error location if the two buffers are in two
+                ;; different frames.  So don't do it if it's not necessary.
+                pre-existing
+	      (display-buffer (marker-buffer msg) '(nil (allow-no-window . t)))))
+	 (highlight-regexp (with-current-buffer (marker-buffer msg)
+			     ;; also do this while we change buffer
+			     (goto-char (marker-position msg))
+			     (and w (compilation-set-window w msg))
+			     compilation-highlight-regexp)))
+    ;; Ideally, the window-size should be passed to `display-buffer'
+    ;; so it's only used when creating a new window.
+    (when (and (not pre-existing) w)
+      (compilation-set-window-height w))
+
+    ;; Without this change, next-error changes the compilation buffer on the
+    ;; right-hand frame for the source file.
+;;    (if from-compilation-buffer
+;;        ;; If the compilation buffer window was selected,
+;;        ;; keep the compilation buffer in this window;
+;;        ;; display the source in another window.
+;;        (let ((pop-up-windows t))
+;;          (pop-to-buffer (marker-buffer mk) 'other-window))
+;;      (switch-to-buffer (marker-buffer mk)))
+    (pop-to-buffer (marker-buffer mk) 'other-window)
+
+    (unless (eq (goto-char mk) (point))
+      ;; If narrowing gets in the way of going to the right place, widen.
+      (widen)
+      (if next-error-move-function
+	  (funcall next-error-move-function msg mk)
+	(goto-char mk)))
+    (if end-mk
+        (push-mark end-mk t)
+      (if mark-active (setq mark-active nil)))
+    ;; If hideshow got in the way of
+    ;; seeing the right place, open permanently.
+    (dolist (ov (overlays-at (point)))
+      (when (eq 'hs (overlay-get ov 'invisible))
+        (delete-overlay ov)
+        (goto-char mk)))
+
+    (when highlight-regexp
+      (if (timerp next-error-highlight-timer)
+	  (cancel-timer next-error-highlight-timer))
+      (unless compilation-highlight-overlay
+	(setq compilation-highlight-overlay
+	      (make-overlay (point-min) (point-min)))
+	(overlay-put compilation-highlight-overlay 'face 'next-error))
+      (with-current-buffer (marker-buffer mk)
+	(save-excursion
+	  (if end-mk (goto-char end-mk) (end-of-line))
+	  (let ((end (point)))
+	    (if mk (goto-char mk) (beginning-of-line))
+	    (if (and (stringp highlight-regexp)
+		     (re-search-forward highlight-regexp end t))
+		(progn
+		  (goto-char (match-beginning 0))
+		  (move-overlay compilation-highlight-overlay
+				(match-beginning 0) (match-end 0)
+				(current-buffer)))
+	      (move-overlay compilation-highlight-overlay
+			    (point) end (current-buffer)))
+	    (if (or (eq next-error-highlight t)
+		    (numberp next-error-highlight))
+		;; We want highlighting: delete overlay on next input.
+		(add-hook 'pre-command-hook
+			  'compilation-goto-locus-delete-o)
+	      ;; We don't want highlighting: delete overlay now.
+	      (delete-overlay compilation-highlight-overlay))
+	    ;; We want highlighting for a limited time:
+	    ;; set up a timer to delete it.
+	    (when (numberp next-error-highlight)
+	      (setq next-error-highlight-timer
+		    (run-at-time next-error-highlight nil
+				 'compilation-goto-locus-delete-o)))))))
+    (when (and (eq next-error-highlight 'fringe-arrow))
+      ;; We want a fringe arrow (instead of highlighting).
+      (setq next-error-overlay-arrow-position
+	    (copy-marker (line-beginning-position))))))
+
+(defun trap-nonsense ()
+;;  (defun enter-debugger0 (arg) (debug))
+  (defun enter-debugger1 (arg) (debug))
+  (advice-add 'xterm-mouse-mode :before #'enter-debugger1)
+;;  (advice-add 'company-mode :before #'enter-debugger0)
+)
+
+  ;; https://www.emacswiki.org/emacs/ToggleWindowSplit
+  (defun rotate-split ()
+    "If the frame is split vertically, split it horizontally or vice versa.
+  Assumes that the frame is only split into two."
+    (interactive)
+    (unless (= (length (window-list)) 2) (error "Can only toggle a frame split in two"))
+    (let ((split-vertically-p (window-combined-p)))
+      (delete-window) ; closes current window
+      (if split-vertically-p
+          (split-window-horizontally)
+        (split-window-vertically)) ; gives us a split with the other window twice
+      (switch-to-buffer nil))) ; restore the original window in this part of the frame
 
   ;; Put useful files first in the helm listings
 ;;  (defun prioritise-in-helm (filename)
@@ -523,6 +692,17 @@ you should place your code here."
   ;;   open; close them before suspending Emacs".
   ;; - Ediff bindings! The window motion keys don't work
   ;; - "Failed to apply window resizing" when trying to close a window
+
+;; New list of annoyances
+;; Tab behaviour in OCaml mode.  Below "<spc><spc><spc><spc>|<spc>id<spc>->"
+;; it indents under the "d"...
+;; Company mode switching itself on after it's been disabled
+;; Company mode completing not only on "."
+;; When I search for something, the highlighting seems to be case insensitive,
+;; even though the search itself is case sensitive.
+;; "ZZ" is inconsistent.  Sometimes it quits when there are buffers remaining.
+;; Make Tab in tuareg mode just go to the first non-space column from the
+;; previous line, or if that is zero, indent by 8
 )
 
 ;; Do not write anything past this comment. This is where Emacs will
@@ -532,16 +712,26 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(company-auto-complete t)
- '(company-auto-complete-chars ".")
- '(company-idle-delay nil)
+ '(display-buffer-alist
+   (quote
+    ((".*\\.h" display-buffer-reuse-window
+      (reusable-frames . t))
+     (".*\\.c" display-buffer-reuse-window
+      (reusable-frames . t))
+     (".*\\.mli" display-buffer-reuse-window
+      (reusable-frames . t))
+     (".*\\.ml" display-buffer-reuse-window
+      (reusable-frames . t))
+     ("\\*compilation\\*" display-buffer-reuse-window
+      (reusable-frames . t)))))
  '(evil-want-fine-undo t)
+ '(helm-ff-lynx-style-map nil)
  '(helm-mode-handle-completion-in-region nil)
  '(hl-paren-background-colors (quote ("#ff1493")))
  '(hl-paren-colors (quote ("white" "IndianRed1" "IndianRed3" "IndianRed4")))
  '(package-selected-packages
    (quote
-    (disable-mouse zonokai-theme zenburn-theme zen-and-art-theme ws-butler window-numbering which-key volatile-highlights vi-tilde-fringe uuidgen utop use-package underwater-theme ujelly-theme twilight-theme twilight-bright-theme twilight-anti-bright-theme tuareg tronesque-theme toxi-theme toc-org tao-theme tangotango-theme tango-plus-theme tango-2-theme sunny-day-theme sublime-themes subatomic256-theme subatomic-theme stekene-theme spacemacs-theme spaceline spacegray-theme soothe-theme soft-stone-theme soft-morning-theme soft-charcoal-theme smyx-theme smeargle seti-theme reverse-theme restart-emacs rainbow-delimiters railscasts-theme quelpa purple-haze-theme professional-theme popwin planet-theme phoenix-dark-pink-theme phoenix-dark-mono-theme persp-mode pcre2el pastels-on-dark-theme paradox orgit organic-green-theme org-projectile org-present org-pomodoro org-plus-contrib org-download org-bullets open-junk-file omtose-phellack-theme oldlace-theme occidental-theme obsidian-theme noctilux-theme niflheim-theme neotree naquadah-theme mustang-theme move-text monokai-theme monochrome-theme molokai-theme moe-theme mmm-mode minimal-theme merlin material-theme markdown-toc majapahit-theme magit-gitflow macrostep lush-theme lorem-ipsum linum-relative link-hint light-soap-theme jbeans-theme jazz-theme ir-black-theme inkpot-theme info+ indent-guide ido-vertical-mode hungry-delete htmlize hl-todo highlight-numbers highlight-indentation heroku-theme hemisu-theme help-fns+ helm-themes helm-swoop helm-projectile helm-mode-manager helm-make helm-gitignore helm-flx helm-descbinds helm-company helm-c-yasnippet helm-ag hc-zenburn-theme gruvbox-theme gruber-darker-theme grandshell-theme gotham-theme google-translate golden-ratio gnuplot gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link gh-md gandalf-theme flx-ido flatui-theme flatland-theme firebelly-theme fill-column-indicator farmhouse-theme fancy-battery eyebrowse expand-region exec-path-from-shell evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-surround evil-search-highlight-persist evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-indent-plus evil-iedit-state evil-exchange evil-escape evil-ediff evil-args evil-anzu eval-sexp-fu espresso-theme elisp-slime-nav dumb-jump dracula-theme django-theme define-word darktooth-theme darkokai-theme darkmine-theme darkburn-theme dakrone-theme cyberpunk-theme company-statistics column-enforce-mode colorsarenice-theme color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized clues-theme clean-aindent-mode cherry-blossom-theme busybee-theme bubbleberry-theme birds-of-paradise-plus-theme badwolf-theme auto-yasnippet auto-highlight-symbol auto-compile apropospriate-theme anti-zenburn-theme ample-zen-theme ample-theme alect-themes aggressive-indent afternoon-theme adaptive-wrap ace-window ace-link ace-jump-helm-line ac-ispell)))
+    (log4e powerline spinner org alert merlin markdown-mode hydra projectile request anzu autothemer company bind-key packed auto-complete avy yasnippet iedit smartparens bind-map highlight evil undo-tree helm helm-core magit magit-popup git-commit with-editor dash async disable-mouse zonokai-theme zenburn-theme zen-and-art-theme ws-butler window-numbering which-key volatile-highlights vi-tilde-fringe uuidgen utop use-package underwater-theme ujelly-theme twilight-theme twilight-bright-theme twilight-anti-bright-theme tuareg tronesque-theme toxi-theme toc-org tao-theme tangotango-theme tango-plus-theme tango-2-theme sunny-day-theme sublime-themes subatomic256-theme subatomic-theme stekene-theme spacemacs-theme spaceline spacegray-theme soothe-theme soft-stone-theme soft-morning-theme soft-charcoal-theme smyx-theme smeargle seti-theme reverse-theme restart-emacs rainbow-delimiters railscasts-theme quelpa purple-haze-theme professional-theme popwin planet-theme phoenix-dark-pink-theme phoenix-dark-mono-theme persp-mode pcre2el pastels-on-dark-theme paradox orgit organic-green-theme org-projectile org-present org-pomodoro org-plus-contrib org-download org-bullets open-junk-file omtose-phellack-theme oldlace-theme occidental-theme obsidian-theme noctilux-theme niflheim-theme neotree naquadah-theme mustang-theme move-text monokai-theme monochrome-theme molokai-theme moe-theme mmm-mode minimal-theme material-theme markdown-toc majapahit-theme magit-gitflow macrostep lush-theme lorem-ipsum linum-relative link-hint light-soap-theme jbeans-theme jazz-theme ir-black-theme inkpot-theme info+ indent-guide ido-vertical-mode hungry-delete htmlize hl-todo highlight-numbers highlight-indentation heroku-theme hemisu-theme help-fns+ helm-themes helm-swoop helm-projectile helm-mode-manager helm-make helm-gitignore helm-flx helm-descbinds helm-company helm-c-yasnippet helm-ag hc-zenburn-theme gruvbox-theme gruber-darker-theme grandshell-theme gotham-theme google-translate golden-ratio gnuplot gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link gh-md gandalf-theme flx-ido flatui-theme flatland-theme firebelly-theme fill-column-indicator farmhouse-theme fancy-battery eyebrowse expand-region exec-path-from-shell evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-surround evil-search-highlight-persist evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-indent-plus evil-iedit-state evil-exchange evil-escape evil-ediff evil-args evil-anzu eval-sexp-fu espresso-theme elisp-slime-nav dumb-jump dracula-theme django-theme define-word darktooth-theme darkokai-theme darkmine-theme darkburn-theme dakrone-theme cyberpunk-theme company-statistics column-enforce-mode colorsarenice-theme color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized clues-theme clean-aindent-mode cherry-blossom-theme busybee-theme bubbleberry-theme birds-of-paradise-plus-theme badwolf-theme auto-yasnippet auto-highlight-symbol auto-compile apropospriate-theme anti-zenburn-theme ample-zen-theme ample-theme alect-themes aggressive-indent afternoon-theme adaptive-wrap ace-window ace-link ace-jump-helm-line ac-ispell)))
  '(smooth-scroll-margin 1)
  '(tab-width 8)
  '(tuareg-electric-indent nil)
@@ -553,18 +743,21 @@ you should place your code here."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(default ((t (:inherit nil :stipple nil :background "#000000" :foreground "#d3d3d3" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 90 :width normal :family "DejaVu Sans Mono"))))
- '(company-tooltip-common ((t (:inherit company-tooltip :weight bold :underline nil))))
- '(company-tooltip-common-selection ((t (:inherit company-tooltip-selection :weight bold :underline nil))))
- '(diff-added ((t (:foreground "color-48"))))
+ '(default ((t (:inherit nil :stipple nil :background "#000000" :foreground "#d3d3d3" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight normal :height 90 :width normal :foundry "unknown" :family "Monospace"))))
+ '(diff-added ((t (:foreground "color-71"))))
+ '(diff-indicator-removed ((t (:foreground "color-197"))))
+ '(diff-refine-added ((t (:background "color-28"))))
  '(diff-removed ((t (:foreground "color-198"))))
  '(evil-search-highlight-persist-highlight-face ((t (:background "color-55"))))
  '(font-lock-doc-face ((t (:foreground "color-33"))))
  '(hl-line ((t (:background "color-234"))))
- '(link ((t (:foreground "color-172" :underline t :weight bold))))
- '(rainbow-delimiters-depth-1-face ((t (:foreground "color-127"))))
- '(rainbow-delimiters-depth-2-face ((t (:foreground "color-26"))))
- '(rainbow-delimiters-unmatched-face ((t (:background "color-196" :foreground "color-208"))))
+ '(merlin-type-face ((t (:background "color-161"))))
+ '(rainbow-delimiters-depth-1-face ((t (:foreground "color-105"))))
+ '(rainbow-delimiters-depth-2-face ((t (:foreground "color-27"))))
  '(region ((t (:background "color-17"))))
- '(show-paren-match ((t (:background "#ff1493" :foreground "white"))))
- '(show-paren-mismatch ((t (:background "color-196" :foreground "color-208")))))
+ '(show-paren-mismatch ((t (:background "color-196" :foreground "color-208"))))
+ '(smerge-refined-added ((t (:inherit smerge-refined-change :background "color-28"))))
+ '(spaceline-highlight-face ((t (:background "#eeeeee" :foreground "#3E3D31" :inherit (quote mode-line)))))
+ '(spaceline-modified ((t (:background "#bb0055" :foreground "#000000" :inherit (quote mode-line)))))
+ '(spaceline-read-only ((t (:background "#444444" :foreground "#999999" :inherit (quote mode-line)))))
+ '(spaceline-unmodified ((t (:background "#666666" :foreground "#000000" :inherit (quote mode-line))))))
